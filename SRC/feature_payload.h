@@ -57,6 +57,12 @@ struct vid_addr_tuple {
 	int membership;			// Membership PRIMARY, SECONDARY, TERTIARY
 };
 
+struct interface_tracker_t {
+  char eth_name[ETH_ADDR_LEN];
+  int isUP;               // true, if UP. false if DOWN.
+  struct interface_tracker_t *next;
+};
+
 /*enum port_type_t {
 	MT_PORT,
 	HOST_PORT
@@ -89,7 +95,7 @@ int isChild(char *);
 bool add_entry_LL(struct vid_addr_tuple *);
 bool find_entry_LL(struct vid_addr_tuple *);
 void print_entries_LL();
-void update_hello_time_LL(struct ether_addr *);
+bool update_hello_time_LL(struct ether_addr *);
 struct vid_addr_tuple* getInstance_vid_tbl_LL();
 bool delete_entry_LL(char *);
 
@@ -102,7 +108,7 @@ void print_entries_cpvid_LL();
 struct child_pvid_tuple* getInstance_cpvid_LL();
 bool delete_entry_cpvid_LL(char *);
 bool delete_MACentry_cpvid_LL(struct ether_addr *);
-void update_hello_time_cpvid_LL(struct ether_addr *);
+bool update_hello_time_cpvid_LL(struct ether_addr *);
 bool update_entry_cpvid_LL(struct child_pvid_tuple *);
 
 /* Function Prototypes for Local host broadcast information */
@@ -115,6 +121,6 @@ struct local_bcast_tuple* getInstance_lbcast_LL();
 
 /* check Failures */
 int checkForFailures(char **);
-void checkForFailuresCPVID();
+bool checkForFailuresCPVID();
 //bool isInterfaceActive(char *);
 #endif /* FT_PYL_H */

@@ -204,7 +204,8 @@ int  build_VID_CHANGE_PAYLOAD(uint8_t *data, char *interface, char **deletedVIDs
     char vid_addr[VID_ADDR_LEN];
 
     memset(vid_addr, '\0', VID_ADDR_LEN);
-    sprintf(vid_addr, "%s.%d", deletedVIDs[i], egressPort );
+    //sprintf(vid_addr, "%s.%d", deletedVIDs[i], egressPort ); for now, lets see if don't append egress port
+    sprintf(vid_addr, "%s", deletedVIDs[i]);
     memcpy(&data[payloadLen], vid_addr, VID_ADDR_LEN);
     payloadLen += VID_ADDR_LEN;
     numAdvts++;
@@ -333,10 +334,10 @@ void print_entries_LL() {
   struct vid_addr_tuple *current;
 
   printf("\n\n#######Main VID Table#########\n");
-  printf("MT_VID \t\tEthname\t\t\tPath Cost\tMembership\tMAC\n");
+  printf("MT_VID\t\t\t\tEthname\t\t\tPath Cost\tMembership\tMAC\n");
 
   for (current = main_vid_tbl_head; current != NULL; current = current->next) {
-    printf("%s\t\t%s\t\t\t%d\t\t%d\t\t%s\n", current->vid_addr, current->eth_name, current->path_cost, current->membership, ether_ntoa(&current->mac) );
+    printf("%s\t\t\t\t%s\t\t\t%d\t\t%d\t\t%s\n", current->vid_addr, current->eth_name, current->path_cost, current->membership, ether_ntoa(&current->mac) );
   }
 }
 
@@ -346,17 +347,20 @@ void print_entries_LL() {
  *              Head Ptr,               *vid_table
  *
  *              @return
- *              void
+ *              bool
 **/
 
-void update_hello_time_LL(struct ether_addr *mac) {
+bool update_hello_time_LL(struct ether_addr *mac) {
   struct vid_addr_tuple *current;
+  bool hasUpdates = false;
 
   for (current = main_vid_tbl_head; current != NULL; current = current->next) {
     if (memcmp(&current->mac, mac, sizeof (struct ether_addr))==0) {
       current->last_updated = time(0);
+      hasUpdates = true;
     }	
   }
+  return hasUpdates;
 }
 
 /**
@@ -391,6 +395,15 @@ int checkForFailures(char **deletedVIDs) {
     }
     previous = current;
     current = current->next;
+  }
+
+  // if failures are there
+  if (numberOfFailures > 0) {
+    int membership = 1;
+    for (current = main_vid_tbl_head; current != NULL; current = current->next) {
+      current->membership = membership;
+      membership++;
+    }
   }
   return numberOfFailures;
 }
@@ -428,6 +441,15 @@ bool delete_entry_LL(char *vid_to_delete) {
     previous = current;
     current = current->next;
   }
+
+  // fix any wrong membership values.
+  if (hasDeletions) {
+    int membership = 1;
+    for (current = main_vid_tbl_head; current != NULL; current = current->next) {
+      current->membership = membership;
+      membership++;
+    }
+  }
   return hasDeletions;
 }
 
@@ -457,13 +479,17 @@ struct vid_addr_tuple* getInstance_vid_tbl_LL() {
 bool add_entry_cpvid_LL(struct child_pvid_tuple *node) {
   if (cpvid_tbl_head == NULL) {
     cpvid_tbl_head = node;
+    return true;
   } else if (update_entry_cpvid_LL(node))  {      // if already, there and there is PVID change.
+    
   } else {
     if (!find_entry_cpvid_LL(node)) {
       node->next = cpvid_tbl_head;
       cpvid_tbl_head = node;
+      return true;
     }
   }
+  return false;
 }
 
 /**
@@ -510,7 +536,7 @@ void print_entries_cpvid_LL() {
   printf("Child PVID\t\tPORT\t\t\tMAC\n");
 
   for (current = cpvid_tbl_head; current != NULL; current = current->next) {
-    printf("%s\t\t%s\t\t\t%s\n", current->vid_addr, current->child_port, ether_ntoa(&current->mac) );
+    printf("%s\t\t\t%s\t\t\t%s\n", current->vid_addr, current->child_port, ether_ntoa(&current->mac) );
   }
 }
 
@@ -612,14 +638,17 @@ bool delete_MACentry_cpvid_LL(struct ether_addr *mac) {
  *              void
 **/
 
-void update_hello_time_cpvid_LL(struct ether_addr *mac) {
+bool update_hello_time_cpvid_LL(struct ether_addr *mac) {
   struct child_pvid_tuple *current;
+  bool isUpdated = false;
 
   for (current = cpvid_tbl_head; current != NULL; current = current->next) {
     if (memcmp(&current->mac, mac, sizeof (struct ether_addr))==0) {
       current->last_updated = time(0);
+      isUpdated = true;
     }
   }
+  return isUpdated;
 }
 
 /**
@@ -653,10 +682,11 @@ bool update_entry_cpvid_LL(struct child_pvid_tuple *node) {
  *              void
 **/
 
-void checkForFailuresCPVID() {
+bool checkForFailuresCPVID() {
   struct child_pvid_tuple *current = cpvid_tbl_head;
   struct child_pvid_tuple *previous = NULL;
   time_t currentTime = time(0);
+  bool hasDeletions = false;
 
   while (current != NULL) {
     if ((current->last_updated !=-1) &&(currentTime - current->last_updated) > (3 * PERIODIC_HELLO_TIME) ) {
@@ -668,11 +698,13 @@ void checkForFailuresCPVID() {
       }
       current = current->next;
       free(temp);
+      hasDeletions = true;
       continue;
     }
     previous = current;
     current = current->next;
   }
+  return hasDeletions;
 }
 
 /**
@@ -791,82 +823,3 @@ bool delete_entry_lbcast_LL(char *port) {
 struct local_bcast_tuple* getInstance_lbcast_LL() {
   return local_bcast_head;
 }
-
-/**
- *		Delete MT_VIDs whose time stamp has exceeded 3 hellos
- *      VID Table,		Implemented Using linked list. 
- * 		Head Ptr,		*vid_table	
- *		
- *		@return
- *		void	
-**/
-/*
-void delete_entries_LL() {
-    struct vid_addr_tuple *current = vid_table;
-    struct vid_addr_tuple *previous = NULL;
-
-	time_t present_time = time(0);
-    while (current != NULL) {
-    	if ((present_time - current->last_updated) > 30 && (current->last_updated != -1)) {
-			printf("Deleting.. %s\n", current->vid_addr);
-			if (current == vid_table) {
-				free(vid_table);
-				vid_table = current->next;
-				current = vid_table;
-				previous = NULL;
-				continue;
-			} else {
-				struct vid_addr_tuple *temp = current;
-				current = current->next;
-				free(temp);
-				previous->next = current;
-				continue;
-			}
-    	} 
-    	previous = current;
-    	current = current->next;
-    }
-}
-
-// check for link failures
-void checkForLinkFailures() {
-	struct vid_addr_tuple *current = vid_table;
-
-	while (current != NULL) {
-		if ((strcmp(current->eth_name, "self") != 0) && !isInterfaceActive(current->eth_name)) {
-			printf("Error: %s Down!!\n", current->vid_addr );
-		}
-		current = current->next;
-	}
-}
-
-// check if the interface name is active.
-bool isInterfaceActive(char *iName) {
-	// find all interfaces on the node.
-	struct ifaddrs *ifaddr, *ifa;
-
-	if (getifaddrs(&ifaddr)) {
-		perror("Error: getifaddrs() Failed\n");
-		exit(0);
-	}
-
-	// loop through the list
-	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-		if (ifa->ifa_addr == NULL) {
-			continue;
-		}
-		int family;
-		family = ifa->ifa_addr->sa_family;
-
-		// populate interface names, if interface is UP and if ethernet interface doesn't belong to control interface and Loopback interface.
-		if (family == AF_INET && (strncmp(ifa->ifa_name, "lo", 2) != 0) && (ifa->ifa_flags & IFF_UP) != 0) {
-
-			if (strcmp(ifa->ifa_name, iName)==0) {
-				return true;
-			} 
-
-		}
-	}
-	return false;
-}*/
-

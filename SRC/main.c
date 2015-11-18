@@ -35,9 +35,12 @@
 
 void mtp_start();
 int getActiveInterfaces(char **);
+void learn_active_interfaces();
+bool checkInterfaceIsActive(char *);
 
 /* Globals */
 bool isRoot = false;
+struct interface_tracker_t *interfaceTracker = NULL;
 
 /* Entry point to the program */
 int main (int argc, char** argv) {	
@@ -100,6 +103,9 @@ int main (int argc, char** argv) {
 		}
 	}
 
+  // learn all interfaces avaliable.
+  learn_active_interfaces();
+
 	// Start
 	mtp_start();
 
@@ -141,41 +147,41 @@ void mtp_start() {
 		// Send Hello Periodic, only if have atleast One VID in Main VID Table.
 		if (((time_advt_fin - time_advt_beg) > PERIODIC_HELLO_TIME)) {
 
-			memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
-			int numberOfInterfaces = getActiveInterfaces(interfaceNames);
+      memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+      int numberOfInterfaces = getActiveInterfaces(interfaceNames);
 
-			uint8_t *payload = NULL;
-			int payloadLen = 0;
+      uint8_t *payload = NULL;
+      int payloadLen = 0;
 
-			payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
+      payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
 
-			// send JOIN MSG if there are no VID entries in the Main VID Table.
-			if (isMain_VID_Table_Empty()) { 
-				payloadLen = build_JOIN_MSG_PAYLOAD(payload);
-			} else {
-			// send if entries already present in Main VID Table.
-				payloadLen = build_PERIODIC_MSG_PAYLOAD(payload);
-			}
+      // send JOIN MSG if there are no VID entries in the Main VID Table.
+      if (isMain_VID_Table_Empty()) { 
+        payloadLen = build_JOIN_MSG_PAYLOAD(payload);
+      } else {
+        // send if entries already present in Main VID Table.
+        payloadLen = build_PERIODIC_MSG_PAYLOAD(payload);
+      }
 
-			if (payloadLen) {
-				int i = 0;
-				for (; i < numberOfInterfaces; ++i) {			
-					ctrlSend(interfaceNames[i], payload, payloadLen);
-				}
-			}
-			free(payload);
+      if (payloadLen) {
+        int i = 0;
+        for (; i < numberOfInterfaces; ++i) {			
+          ctrlSend(interfaceNames[i], payload, payloadLen);
+        }
+      }
+      free(payload);
 
-			// reset time.
-			time_advt_beg = time(0);
+      // reset time.
+      time_advt_beg = time(0);
 
       memset(deletedVIDs, '\0', sizeof(char) * MAX_VID_LIST * MAX_VID_LIST);
-      
-			// check for failures and delete if any VID exceeds periodic hello by (PERIODIC_HELLO_TIME * 3)
+
+      // check for failures and delete if any VID exceeds periodic hello by (PERIODIC_HELLO_TIME * 3)
       int numberOfDeletions = checkForFailures(deletedVIDs);
 
-      checkForFailuresCPVID();
+      bool hasCPVIDDeletions = checkForFailuresCPVID();
 
-			if ( numberOfDeletions != 0) {
+      if ( numberOfDeletions != 0) {
 
         int i = 0;
         for (; i < numberOfInterfaces; i++) {
@@ -194,24 +200,26 @@ void mtp_start() {
           delete_entry_cpvid_LL(deletedVIDs[i]);  
         }
 
-        payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
 
         struct vid_addr_tuple* c1 =  getInstance_vid_tbl_LL();
         if (c1 != NULL) {
+          payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
           payloadLen = build_VID_ADVT_PAYLOAD(payload, c1->eth_name);
           if (payloadLen) {
             ctrlSend(c1->eth_name, payload, payloadLen);
-            printf("Sending %s\n", c1->vid_addr);
           }
           free(payload);
         } 
 
-				// do prunning
-				print_entries_LL();
+      }
+
+      // print all tables.
+      if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
+        print_entries_LL();
         print_entries_cpvid_LL();
         print_entries_lbcast_LL(); 
-			}
-		} 
+      }
+    } 
 
 		socklen_t addr_len = sizeof(src_addr);
 
@@ -238,7 +246,7 @@ void mtp_start() {
       switch ( recvBuffer[14] ) {
         case MTP_TYPE_JOIN_MSG:
           {
-            //printf ("GOT MTP_TYPE_JOIN_MSG\n");
+            printf ("GOT MTP_TYPE_JOIN_MSG\n");
             uint8_t *payload = NULL;
             int payloadLen = 0;
 
@@ -260,9 +268,26 @@ void mtp_start() {
             // printf ("MTP_TYPE_PERODIC_MSG\n");
             // Record MAC ADDRESS, if not already present.
             struct ether_addr src_mac;
+            bool retMainVID, retCPVID; 
+
             memcpy(&src_mac, (struct ether_addr *)&eheader->ether_shost, sizeof(struct ether_addr));
-            update_hello_time_LL(&src_mac);
-            update_hello_time_cpvid_LL(&src_mac);
+            retMainVID = update_hello_time_LL(&src_mac);
+            retCPVID = update_hello_time_cpvid_LL(&src_mac);
+            
+            if ( (retMainVID == true) || (retCPVID == true) ) {
+
+            } else {
+              if (!isRoot) {
+                uint8_t *payload = NULL;
+                int payloadLen = 0;
+                payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
+                payloadLen = build_JOIN_MSG_PAYLOAD(payload);
+                if (payloadLen) {
+                  ctrlSend(recvOnEtherPort, payload, payloadLen);
+                }
+                free(payload);
+              }
+            }
           }
           break;
         case MTP_TYPE_VID_ADVT:
@@ -343,10 +368,6 @@ void mtp_start() {
 
                     int i = 0;
                     for (; i < numberOfInterfaces; ++i) {
-                      /*if (strncmp (recvOnEtherPort,  interfaceNames[i], strlen(recvOnEtherPort)) == 0) {
-
-                        }*/
-
                       // recvOnEtherPort - Payload destination will be same from where Join message has orginated.
                       payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
                       if (payloadLen) {
@@ -536,4 +557,50 @@ int getActiveInterfaces(char **ptr ) {
     freeifaddrs(ifaddr);
 
     return indexLen;
+}
+
+
+void learn_active_interfaces() {
+  int numberOfInterfaces;
+  char **iNames;
+
+  iNames = (char**) calloc (MAX_INTERFACES*MAX_INTERFACES, sizeof(char));
+  memset(iNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+
+  numberOfInterfaces = getActiveInterfaces(iNames);
+
+  int i = 0;
+  for (; i < numberOfInterfaces; i++) {
+    struct interface_tracker_t *temp = (struct interface_tracker_t*) calloc (1, sizeof(struct interface_tracker_t));
+    strncpy (temp->eth_name, iNames[i], strlen(iNames[i]));
+    temp->isUP = true;
+    temp->next = interfaceTracker;
+    interfaceTracker = temp;
+  }
+}
+
+bool checkInterfaceIsActive(char *str) {
+    // find all interfaces on the node.
+    struct ifaddrs *ifaddr, *ifa;
+
+    if (getifaddrs(&ifaddr) ) {
+        perror("Error: getifaddrs Failed\n");
+        exit(0);
+    }
+
+    // loop through the list
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+        if (ifa->ifa_addr == NULL) {
+                continue;
+        }
+        int family;
+        family = ifa->ifa_addr->sa_family;
+
+        if (family == AF_INET && (strncmp(ifa->ifa_name, str, strlen(str)) == 0) && (ifa->ifa_flags & IFF_UP) != 0) {
+          freeifaddrs(ifaddr);  
+          return true;
+        }
+    }
+    freeifaddrs(ifaddr);  
+    return false;
 }
