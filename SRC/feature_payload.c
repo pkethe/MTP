@@ -3,7 +3,7 @@
 
 /* file locals */
 struct vid_addr_tuple *main_vid_tbl_head = NULL;
-struct vid_addr_tuple *bkp_vid_tbl_head = NULL;
+//struct vid_addr_tuple *bkp_vid_tbl_head = NULL; // we can maintain backup paths in Main VID Table only, just a thought
 struct child_pvid_tuple *cpvid_tbl_head = NULL; 
 struct local_bcast_tuple *local_bcast_head = NULL;
 
@@ -63,7 +63,7 @@ int isChild(char *vid) {
  *
  */
 
-// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <MAIN_TABLE_VID + EGRESS PORT> 
+// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT> 
 int  build_VID_ADVT_PAYLOAD(uint8_t *data, char *interface) {
   int payloadLen = 3;
   int numAdvts = 0;
@@ -94,11 +94,24 @@ int  build_VID_ADVT_PAYLOAD(uint8_t *data, char *interface) {
     } else {
       sprintf(vid_addr, "%s.%d", current->vid_addr, egressPort );
     }
-    memcpy(&data[payloadLen], vid_addr, VID_ADDR_LEN);
 
-    payloadLen += VID_ADDR_LEN;
+    // <VID_ADDR_LEN>
+    data[payloadLen] = strlen(vid_addr);
+
+    // next byte
+    payloadLen = payloadLen + 1;
+
+    memcpy(&data[payloadLen], vid_addr, strlen(vid_addr));
+
+    payloadLen += strlen(vid_addr);
     current = current->next;
     numAdvts++;
+
+    /* VID Advts should not be more than 3, because we need to advertise only the entries that are in Main VID Table
+       from 3 we consider every path as backup path. */
+    if (numAdvts >=3 ) {
+        break;
+    }
   }
 
   if (numAdvts > 0) {
@@ -185,7 +198,7 @@ int  build_PERIODIC_MSG_PAYLOAD(uint8_t *data) {
  *
  */
 
-// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <MAIN_TABLE_VID + EGRESS PORT>
+// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
 int  build_VID_CHANGE_PAYLOAD(uint8_t *data, char *interface, char **deletedVIDs, int numberOfDeletions) {
   int payloadLen = 3;
   int numAdvts = 0;
@@ -206,8 +219,15 @@ int  build_VID_CHANGE_PAYLOAD(uint8_t *data, char *interface, char **deletedVIDs
     memset(vid_addr, '\0', VID_ADDR_LEN);
     //sprintf(vid_addr, "%s.%d", deletedVIDs[i], egressPort ); for now, lets see if don't append egress port
     sprintf(vid_addr, "%s", deletedVIDs[i]);
-    memcpy(&data[payloadLen], vid_addr, VID_ADDR_LEN);
-    payloadLen += VID_ADDR_LEN;
+    
+    // <VID_ADDR_LEN>
+    data[payloadLen] = strlen(vid_addr);
+
+    // next byte
+    payloadLen = payloadLen + 1;
+
+    memcpy(&data[payloadLen], vid_addr, strlen(vid_addr));
+    payloadLen += strlen(vid_addr);
     numAdvts++;
   }
 
@@ -332,12 +352,18 @@ bool find_entry_LL(struct vid_addr_tuple *node) {
 
 void print_entries_LL() {
   struct vid_addr_tuple *current;
+  int tracker = MAX_MAIN_VID_TBL_PATHS;
 
-  printf("\n\n#######Main VID Table#########\n");
+  printf("\n#######Main VID Table#########\n");
   printf("MT_VID\t\t\t\tEthname\t\t\tPath Cost\tMembership\tMAC\n");
 
   for (current = main_vid_tbl_head; current != NULL; current = current->next) {
-    printf("%s\t\t\t\t%s\t\t\t%d\t\t%d\t\t%s\n", current->vid_addr, current->eth_name, current->path_cost, current->membership, ether_ntoa(&current->mac) );
+    if (tracker <= 0) {
+      break;
+    } else {
+      printf("%s\t\t\t\t%s\t\t\t%d\t\t%d\t\t%s\n", current->vid_addr, current->eth_name, current->path_cost, current->membership, ether_ntoa(&current->mac) );
+      tracker--;
+    }
   }
 }
 
@@ -468,6 +494,32 @@ struct vid_addr_tuple* getInstance_vid_tbl_LL() {
 }
 
 /**
+ *    Print VID Table.
+ *    Backup VID Paths,    Implemented Using linked list, instead of maintaining a seperate table, I am adding Main VIDS and Backup Paths
+ *                         in the same table. 
+ *    Head Ptr,   *vid_table  
+ *    
+ *    @return
+ *    void  
+**/
+
+void print_entries_bkp_LL() {
+  struct vid_addr_tuple *current;
+  int tracker = MAX_MAIN_VID_TBL_PATHS;
+
+  printf("\n#######Backup VID Table#########\n");
+  printf("MT_VID\t\t\t\tEthname\t\t\tPath Cost\tMembership\tMAC\n");
+
+  for (current = main_vid_tbl_head; current != NULL; current = current->next) {
+    if (tracker <= 0) {
+      printf("%s\t\t\t\t%s\t\t\t%d\t\t%d\t\t%s\n", current->vid_addr, current->eth_name, current->path_cost, current->membership, ether_ntoa(&current->mac) );
+    } else {
+      tracker--;
+    }
+  }
+}
+
+/**
  *    Add into the Child PVID Table.
  *    Child PVID Table,    Implemented Using linked list.
  *    Head Ptr,   *cpvid_tbl_head
@@ -532,7 +584,7 @@ bool find_entry_cpvid_LL(struct child_pvid_tuple *node) {
 void print_entries_cpvid_LL() {
   struct child_pvid_tuple *current;
 
-  printf("\n\n#######Child PVID Table#########\n");
+  printf("\n#######Child PVID Table#########\n");
   printf("Child PVID\t\tPORT\t\t\tMAC\n");
 
   for (current = cpvid_tbl_head; current != NULL; current = current->next) {
@@ -766,7 +818,7 @@ void print_entries_lbcast_LL() {
   struct local_bcast_tuple *current;
 
 
-  printf("\n\n#######Local Host Broadcast Table#########\n");
+  printf("\n#######Local Host Broadcast Table#########\n");
   printf("PORT\n");
 
   for (current = local_bcast_head; current != NULL; current = current->next) {
@@ -808,7 +860,6 @@ bool delete_entry_lbcast_LL(char *port) {
     previous = current;
     current = current->next;
   }
-
   return isPortDeleted;
 }
 

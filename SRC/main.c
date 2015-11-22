@@ -30,9 +30,9 @@
 #include "mtp_send.h"
 
 #define ETH_MTP_CTRL    0x8850
-#define MAX_LOCAL_MACS  5
-#define MAX_VID_LIST    5
+#define MAX_VID_LIST    20
 
+/* Function Prototypes */
 void mtp_start();
 int getActiveInterfaces(char **);
 void learn_active_interfaces();
@@ -215,9 +215,10 @@ void mtp_start() {
 
 			// print all tables.
 			if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
-				print_entries_LL();
-				print_entries_cpvid_LL();
-				print_entries_lbcast_LL(); 
+        print_entries_LL();                     // MAIN VID TABLE
+				print_entries_bkp_LL();                 // BKP VID TABLE
+				print_entries_cpvid_LL();               // CHILD PVID TABLE
+				print_entries_lbcast_LL();              // LOCAL HOST PORTS
 			}
 		} 
 
@@ -294,7 +295,7 @@ void mtp_start() {
 						//printf ("MTP_TYPE_VID_ADVT\n");
 						// Got VID Advt, check relationship, if child add to Child PVID Table.
 						// Number of VIDs
-						// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <MAIN_TABLE_VID + EGRESS PORT>
+            // Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
 						uint8_t operation = (uint8_t) recvBuffer[15];
 
 						if (operation == VID_ADD) { 
@@ -308,16 +309,23 @@ void mtp_start() {
 								// next byte
 								tracker = tracker + 1;
 
-								//printf ("VID Len: %u\n", recvBuffer[tracker])
+                // <VID_ADDR_LEN>
+                uint8_t vid_len = recvBuffer[tracker];
 
-								char vid_addr[VID_ADDR_LEN];
+                // next byte 
+                tracker = tracker + 1;
+                 
+								char vid_addr[vid_len];
 
-								memset(vid_addr, '\0', VID_ADDR_LEN);
-								strncpy(vid_addr, &recvBuffer[tracker], VID_ADDR_LEN);
-								tracker += VID_ADDR_LEN;
+								memset(vid_addr, '\0', vid_len);
+								strncpy(vid_addr, &recvBuffer[tracker], vid_len);
+                vid_addr[vid_len] = '\0';
+								tracker += vid_len;
+      
+                printf ("VIDLEN %u VID_ADDR %s\n", vid_len, vid_addr);
 
 								int ret = isChild(vid_addr);
-								//printf("THE VID RECEIVED IS %s Child %d\n", vid_addr, ret);
+
 								// if VID child ignore, incase part of PVID add to Child PVID table. 
 								if ( ret == 1) {
 									// if this is the first VID in the table and is a child, we have to add into child PVID Table
@@ -388,9 +396,9 @@ void mtp_start() {
 							}
 						} else if (operation == VID_DEL){
 							//printf ("GOT VID_DEL\n");
-							// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <MAIN_TABLE_VID + EGRESS PORT>
+              // Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
 							uint8_t numberVIDS = (uint8_t) recvBuffer[16];
-							//printf ("numberVIDS %u\n", numberVIDS);
+
 							// delete all local entries, get a list and send to others who derive from this VID. 
 							memset(deletedVIDs, '\0', sizeof(char) * MAX_VID_LIST * MAX_VID_LIST);
 
@@ -400,11 +408,18 @@ void mtp_start() {
 							int i = 0;
 							int tracker = 17;
 							while (i < numberOfDeletions) {
-								deletedVIDs[i] = (char*)calloc(VID_ADDR_LEN, sizeof(char));
-								strncpy(deletedVIDs[i], &recvBuffer[tracker], VID_ADDR_LEN);
+                //<VID_ADDR_LEN>
+                uint8_t vid_len = recvBuffer[tracker];
+
+                // next byte, make tracker point to VID_ADDR
+                tracker = tracker + 1;
+
+								deletedVIDs[i] = (char*)calloc(vid_len, sizeof(char));
+								strncpy(deletedVIDs[i], &recvBuffer[tracker], vid_len);
+                recvBuffer[vid_len] = '\0';
 								hasDeletions = delete_entry_LL(deletedVIDs[i]);
 								delete_entry_cpvid_LL(deletedVIDs[i]);
-								tracker += VID_ADDR_LEN; 
+								tracker += vid_len; 
 								i++;
 							} 
 
@@ -443,6 +458,7 @@ void mtp_start() {
 							printf("Unknown VID Advertisment\n");
 						}
 						print_entries_LL();
+            print_entries_bkp_LL();
 						print_entries_cpvid_LL();
 						print_entries_lbcast_LL(); 
 					} 
@@ -544,7 +560,7 @@ int getActiveInterfaces(char **ptr ) {
 
             inet_ntop(AF_INET, &(ipaddr->sin_addr), networkIP, INET_ADDRSTRLEN);
 
-            if (strncmp(networkIP, "172", 3) == 0) {
+            if (strncmp(networkIP, "155", 3) == 0) {
                     // skip, as it is control interface.
                     continue;
             }

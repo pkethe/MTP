@@ -1,3 +1,6 @@
+sudo pkill mtpd
+sudo pkill bcast
+rm -rf bin
 mkdir bin
 gcc SRC/*.c -o bin/mtpd
 gcc bcast/bcast.c -o bin/bcast

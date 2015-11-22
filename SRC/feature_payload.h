@@ -21,7 +21,7 @@
 #include <time.h>
 #include <assert.h>
 
-#define VID_ADDR_LEN           12
+#define VID_ADDR_LEN           20
 #define ETH_ADDR_LEN           5
 #define MAX_BUFFER_SIZE        1024
 #define MAX_INTERFACES         8
@@ -29,6 +29,8 @@
 #define MTP_TYPE_JOIN_MSG       1  // Named as NULL MSG in OPNET.
 #define MTP_TYPE_PERODIC_MSG   	2
 #define MTP_TYPE_VID_ADVT	      3
+
+#define MAX_MAIN_VID_TBL_PATHS  3
 
 #define VID_ADD			            1
 #define VID_DEL			            2
@@ -91,7 +93,7 @@ int  build_VID_CHANGE_PAYLOAD(uint8_t *, char *, char **, int);     // params - 
 bool isMain_VID_Table_Empty();
 int isChild(char *);
 
-/* Function Prototypes for VID Table Linked List */
+/* Function Prototypes for MAIN VID Table Linked List */
 bool add_entry_LL(struct vid_addr_tuple *);
 bool find_entry_LL(struct vid_addr_tuple *);
 void print_entries_LL();
@@ -99,9 +101,10 @@ bool update_hello_time_LL(struct ether_addr *);
 struct vid_addr_tuple* getInstance_vid_tbl_LL();
 bool delete_entry_LL(char *);
 
-//void delete_entries_LL();
+/* Function Prototypes for BKP VID Table Linked List */
+void print_entries_bkp_LL();
 
-/* Function Prototypes for Local port information */
+/* Function Prototypes for CPVID table information */
 bool add_entry_cpvid_LL(struct child_pvid_tuple *);
 bool find_entry_cpvid_LL(struct child_pvid_tuple *);
 void print_entries_cpvid_LL();
