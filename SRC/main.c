@@ -80,7 +80,7 @@ int main (int argc, char** argv) {
 	if (isRoot) {
 		// Check if Root VID is provided through CLI.
 		if (argv[2] != NULL) {
-			printf ("ROOT MTVID: %s\n", argv[2]);
+			//printf ("ROOT MTVID: %s\n", argv[2]);
 
 			// Allocate memory and intialize(calloc).
 			struct vid_addr_tuple *new_node = (struct vid_addr_tuple*) calloc (1, sizeof(struct vid_addr_tuple));
