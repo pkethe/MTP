@@ -227,12 +227,12 @@ void mtp_start() {
 			}
 
 			// print all tables.
-			if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
+			/*if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
 				print_entries_LL();                     // MAIN VID TABLE
 				print_entries_bkp_LL();                 // BKP VID TABLE
 				print_entries_cpvid_LL();               // CHILD PVID TABLE
 				print_entries_lbcast_LL();              // LOCAL HOST PORTS
-			}
+			}*/
 		} 
 
 		socklen_t addr_len = sizeof(src_addr);
@@ -468,10 +468,10 @@ void mtp_start() {
 						} else {
 							printf("Unknown VID Advertisment\n");
 						}
-						print_entries_LL();
+						/*print_entries_LL();
 						print_entries_bkp_LL();
 						print_entries_cpvid_LL();
-						print_entries_lbcast_LL(); 
+						print_entries_lbcast_LL(); */
 					} 
 					break;
 				default:

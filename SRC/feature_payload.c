@@ -633,7 +633,6 @@ bool delete_entry_cpvid_LL(char *cpvid_to_be_deleted) {
       }
 
       current = current->next;
-      printf("CPVID being deleted is %s\n", temp->vid_addr);
       free(temp);
       hasDeletions = true;
       continue;
