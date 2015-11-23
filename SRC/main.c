@@ -31,6 +31,7 @@
 
 #define ETH_MTP_CTRL    0x8850
 #define MAX_VID_LIST    20
+#define CTRL_IP		"172"
 
 /* Function Prototypes */
 void mtp_start();
@@ -241,7 +242,6 @@ void mtp_start() {
 				continue;
 			} else {
 				// This is a MTP frame so, incase this port is in Local host broadcast table remove it.
-				printf("Deleting %s\n", recvOnEtherPort);
 				delete_entry_lbcast_LL(recvOnEtherPort); 
 			}
 
@@ -559,7 +559,7 @@ int getActiveInterfaces(char **ptr ) {
 
 			inet_ntop(AF_INET, &(ipaddr->sin_addr), networkIP, INET_ADDRSTRLEN);
 
-			if (strncmp(networkIP, "155", 3) == 0) {
+			if (strncmp(networkIP, CTRL_IP, 3) == 0) {
 				// skip, as it is control interface.
 				continue;
 			}
