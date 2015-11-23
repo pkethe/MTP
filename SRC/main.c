@@ -44,13 +44,13 @@ struct interface_tracker_t *interfaceTracker = NULL;
 
 /* Entry point to the program */
 int main (int argc, char** argv) {	
-  char **interfaceNames;
+	char **interfaceNames;
 
 	// Check number of Arguments.
 	if (argc < 1) {
-	    printf("Error: Node spec or Source Tier address missing. Format ./main <non MTS/root MTS> <ROOT MTS ID>\n");
-	    printf("Error: 0 for non MTS, 1 for root MTS\n");
-	    exit(1);
+		printf("Error: Node spec or Source Tier address missing. Format ./main <non MTS/root MTS> <ROOT MTS ID>\n");
+		printf("Error: 0 for non MTS, 1 for root MTS\n");
+		exit(1);
 	}
 
 	// Check if Node is Root MTS or Non MTS
@@ -58,23 +58,23 @@ int main (int argc, char** argv) {
 		isRoot = true;
 	}
 
-  // Populate local host broadcast table, intially we mark all ports as host ports, if we get a MTP CTRL frame from any port we remove it.
-  interfaceNames = (char**) calloc (MAX_INTERFACES*MAX_INTERFACES, sizeof(char));
-  memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
-  int numberOfInterfaces = getActiveInterfaces(interfaceNames);
+	// Populate local host broadcast table, intially we mark all ports as host ports, if we get a MTP CTRL frame from any port we remove it.
+	interfaceNames = (char**) calloc (MAX_INTERFACES*MAX_INTERFACES, sizeof(char));
+	memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+	int numberOfInterfaces = getActiveInterfaces(interfaceNames);
 
-  int i = 0;
-  for (; i < numberOfInterfaces; i++) {
-    // Allocate memory and intialize(calloc).
-    struct local_bcast_tuple *new_node = (struct local_bcast_tuple*) calloc (1, sizeof(struct local_bcast_tuple));
-    
-    // Fill
-    strncpy(new_node->eth_name, interfaceNames[i], strlen(interfaceNames[i]));
-    new_node->next = NULL; 
-    add_entry_lbcast_LL(new_node); 
-  }
+	int i = 0;
+	for (; i < numberOfInterfaces; i++) {
+		// Allocate memory and intialize(calloc).
+		struct local_bcast_tuple *new_node = (struct local_bcast_tuple*) calloc (1, sizeof(struct local_bcast_tuple));
 
-  free(interfaceNames);
+		// Fill
+		strncpy(new_node->eth_name, interfaceNames[i], strlen(interfaceNames[i]));
+		new_node->next = NULL; 
+		add_entry_lbcast_LL(new_node); 
+	}
+
+	free(interfaceNames);
 
 	// If Node is Root MTS
 	if (isRoot) {
@@ -103,8 +103,8 @@ int main (int argc, char** argv) {
 		}
 	}
 
-  // learn all interfaces avaliable.
-  learn_active_interfaces();
+	// learn all interfaces avaliable.
+	learn_active_interfaces();
 
 	// Start
 	mtp_start();
@@ -215,7 +215,7 @@ void mtp_start() {
 
 			// print all tables.
 			if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
-        print_entries_LL();                     // MAIN VID TABLE
+				print_entries_LL();                     // MAIN VID TABLE
 				print_entries_bkp_LL();                 // BKP VID TABLE
 				print_entries_cpvid_LL();               // CHILD PVID TABLE
 				print_entries_lbcast_LL();              // LOCAL HOST PORTS
@@ -241,6 +241,7 @@ void mtp_start() {
 				continue;
 			} else {
 				// This is a MTP frame so, incase this port is in Local host broadcast table remove it.
+				printf("Deleting %s\n", recvOnEtherPort);
 				delete_entry_lbcast_LL(recvOnEtherPort); 
 			}
 
@@ -295,7 +296,7 @@ void mtp_start() {
 						//printf ("MTP_TYPE_VID_ADVT\n");
 						// Got VID Advt, check relationship, if child add to Child PVID Table.
 						// Number of VIDs
-            // Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
+						// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS>  <PATH COST> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
 						uint8_t operation = (uint8_t) recvBuffer[15];
 
 						if (operation == VID_ADD) { 
@@ -309,20 +310,18 @@ void mtp_start() {
 								// next byte
 								tracker = tracker + 1;
 
-                // <VID_ADDR_LEN>
-                uint8_t vid_len = recvBuffer[tracker];
+								// <VID_ADDR_LEN>
+								uint8_t vid_len = recvBuffer[tracker];
 
-                // next byte 
-                tracker = tracker + 1;
-                 
+								// next byte 
+								tracker = tracker + 1;
+
 								char vid_addr[vid_len];
 
 								memset(vid_addr, '\0', vid_len);
 								strncpy(vid_addr, &recvBuffer[tracker], vid_len);
-                vid_addr[vid_len] = '\0';
+								vid_addr[vid_len] = '\0';
 								tracker += vid_len;
-      
-                printf ("VIDLEN %u VID_ADDR %s\n", vid_len, vid_addr);
 
 								int ret = isChild(vid_addr);
 
@@ -396,7 +395,7 @@ void mtp_start() {
 							}
 						} else if (operation == VID_DEL){
 							//printf ("GOT VID_DEL\n");
-              // Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
+							// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
 							uint8_t numberVIDS = (uint8_t) recvBuffer[16];
 
 							// delete all local entries, get a list and send to others who derive from this VID. 
@@ -408,15 +407,15 @@ void mtp_start() {
 							int i = 0;
 							int tracker = 17;
 							while (i < numberOfDeletions) {
-                //<VID_ADDR_LEN>
-                uint8_t vid_len = recvBuffer[tracker];
+								//<VID_ADDR_LEN>
+								uint8_t vid_len = recvBuffer[tracker];
 
-                // next byte, make tracker point to VID_ADDR
-                tracker = tracker + 1;
+								// next byte, make tracker point to VID_ADDR
+								tracker = tracker + 1;
 
 								deletedVIDs[i] = (char*)calloc(vid_len, sizeof(char));
 								strncpy(deletedVIDs[i], &recvBuffer[tracker], vid_len);
-                recvBuffer[vid_len] = '\0';
+								recvBuffer[vid_len] = '\0';
 								hasDeletions = delete_entry_LL(deletedVIDs[i]);
 								delete_entry_cpvid_LL(deletedVIDs[i]);
 								tracker += vid_len; 
@@ -458,7 +457,7 @@ void mtp_start() {
 							printf("Unknown VID Advertisment\n");
 						}
 						print_entries_LL();
-            print_entries_bkp_LL();
+						print_entries_bkp_LL();
 						print_entries_cpvid_LL();
 						print_entries_lbcast_LL(); 
 					} 
@@ -535,87 +534,87 @@ void mtp_start() {
 
 // get active interfaces on the node.
 int getActiveInterfaces(char **ptr ) {
-    // find all interfaces on the node.
-    int indexLen = 0;
-    struct ifaddrs *ifaddr, *ifa;
+	// find all interfaces on the node.
+	int indexLen = 0;
+	struct ifaddrs *ifaddr, *ifa;
 
-    if (getifaddrs(&ifaddr) ) {
-        perror("Error: getifaddrs Failed\n");
-        exit(0);
-    }
+	if (getifaddrs(&ifaddr) ) {
+		perror("Error: getifaddrs Failed\n");
+		exit(0);
+	}
 
-    // loop through the list
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL) {
-                continue;
-        }
-        int family;
-        family = ifa->ifa_addr->sa_family;
+	// loop through the list
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL) {
+			continue;
+		}
+		int family;
+		family = ifa->ifa_addr->sa_family;
 
-        // populate interface names, if interface is UP and if ethernet interface doesn't belong to control interface and Loopback interface.
-        if (family == AF_INET && (strncmp(ifa->ifa_name, "lo", 2) != 0) && (ifa->ifa_flags & IFF_UP) != 0) {
-            char networkIP[NI_MAXHOST];
+		// populate interface names, if interface is UP and if ethernet interface doesn't belong to control interface and Loopback interface.
+		if (family == AF_INET && (strncmp(ifa->ifa_name, "lo", 2) != 0) && (ifa->ifa_flags & IFF_UP) != 0) {
+			char networkIP[NI_MAXHOST];
 
-            struct sockaddr_in *ipaddr = ((struct sockaddr_in*) ifa->ifa_addr);
+			struct sockaddr_in *ipaddr = ((struct sockaddr_in*) ifa->ifa_addr);
 
-            inet_ntop(AF_INET, &(ipaddr->sin_addr), networkIP, INET_ADDRSTRLEN);
+			inet_ntop(AF_INET, &(ipaddr->sin_addr), networkIP, INET_ADDRSTRLEN);
 
-            if (strncmp(networkIP, "155", 3) == 0) {
-                    // skip, as it is control interface.
-                    continue;
-            }
-            ptr[indexLen] = (char*)calloc(strlen(ifa->ifa_name), sizeof(char));
-            strncpy(ptr[indexLen], ifa->ifa_name, strlen(ifa->ifa_name));
-            indexLen++;
-        }
-    }
-    freeifaddrs(ifaddr);
+			if (strncmp(networkIP, "155", 3) == 0) {
+				// skip, as it is control interface.
+				continue;
+			}
+			ptr[indexLen] = (char*)calloc(strlen(ifa->ifa_name), sizeof(char));
+			strncpy(ptr[indexLen], ifa->ifa_name, strlen(ifa->ifa_name));
+			indexLen++;
+		}
+	}
+	freeifaddrs(ifaddr);
 
-    return indexLen;
+	return indexLen;
 }
 
 
 void learn_active_interfaces() {
-  int numberOfInterfaces;
-  char **iNames;
+	int numberOfInterfaces;
+	char **iNames;
 
-  iNames = (char**) calloc (MAX_INTERFACES*MAX_INTERFACES, sizeof(char));
-  memset(iNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+	iNames = (char**) calloc (MAX_INTERFACES*MAX_INTERFACES, sizeof(char));
+	memset(iNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
 
-  numberOfInterfaces = getActiveInterfaces(iNames);
+	numberOfInterfaces = getActiveInterfaces(iNames);
 
-  int i = 0;
-  for (; i < numberOfInterfaces; i++) {
-    struct interface_tracker_t *temp = (struct interface_tracker_t*) calloc (1, sizeof(struct interface_tracker_t));
-    strncpy (temp->eth_name, iNames[i], strlen(iNames[i]));
-    temp->isUP = true;
-    temp->next = interfaceTracker;
-    interfaceTracker = temp;
-  }
+	int i = 0;
+	for (; i < numberOfInterfaces; i++) {
+		struct interface_tracker_t *temp = (struct interface_tracker_t*) calloc (1, sizeof(struct interface_tracker_t));
+		strncpy (temp->eth_name, iNames[i], strlen(iNames[i]));
+		temp->isUP = true;
+		temp->next = interfaceTracker;
+		interfaceTracker = temp;
+	}
 }
 
 bool checkInterfaceIsActive(char *str) {
-    // find all interfaces on the node.
-    struct ifaddrs *ifaddr, *ifa;
+	// find all interfaces on the node.
+	struct ifaddrs *ifaddr, *ifa;
 
-    if (getifaddrs(&ifaddr) ) {
-        perror("Error: getifaddrs Failed\n");
-        exit(0);
-    }
+	if (getifaddrs(&ifaddr) ) {
+		perror("Error: getifaddrs Failed\n");
+		exit(0);
+	}
 
-    // loop through the list
-    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL) {
-                continue;
-        }
-        int family;
-        family = ifa->ifa_addr->sa_family;
+	// loop through the list
+	for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr == NULL) {
+			continue;
+		}
+		int family;
+		family = ifa->ifa_addr->sa_family;
 
-        if (family == AF_INET && (strncmp(ifa->ifa_name, str, strlen(str)) == 0) && (ifa->ifa_flags & IFF_UP) != 0) {
-          freeifaddrs(ifaddr);  
-          return true;
-        }
-    }
-    freeifaddrs(ifaddr);  
-    return false;
+		if (family == AF_INET && (strncmp(ifa->ifa_name, str, strlen(str)) == 0) && (ifa->ifa_flags & IFF_UP) != 0) {
+			freeifaddrs(ifaddr);  
+			return true;
+		}
+	}
+	freeifaddrs(ifaddr);  
+	return false;
 }
