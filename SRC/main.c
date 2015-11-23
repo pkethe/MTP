@@ -75,7 +75,6 @@ int main (int argc, char** argv) {
 		add_entry_lbcast_LL(new_node); 
 	}
 
-	free(interfaceNames);
 
 	// If Node is Root MTS
 	if (isRoot) {
@@ -92,8 +91,20 @@ int main (int argc, char** argv) {
 			new_node->last_updated = -1; 		        // -1 here because root ID should not be removed.
 			new_node->port_status = PVID_PORT; 
 			new_node->next = NULL;
-			new_node->isNew = false;
+			new_node->isNew = true;
 			new_node->path_cost = PATH_COST;
+			i = 0;
+			uint8_t *payload = NULL;
+			uint8_t payloadLen;
+
+			for (; i < numberOfInterfaces; i++) {
+				payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
+				payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
+				if (payloadLen) {
+					ctrlSend(interfaceNames[i], payload, payloadLen);
+				}
+				free(payload);
+			}	
 
 			// Add into VID Table.
 			add_entry_LL(new_node);
@@ -103,6 +114,7 @@ int main (int argc, char** argv) {
 			exit(1);
 		}
 	}
+	free(interfaceNames);
 
 	// learn all interfaces avaliable.
 	learn_active_interfaces();
