@@ -1,1 +1,3 @@
+sudo rm data/*
+sudo pkill tshark
 sudo pkill mtpd
