@@ -158,8 +158,6 @@ void mtp_start() {
 		time(&time_advt_fin);
 		// Send Hello Periodic, only if have atleast One VID in Main VID Table.
 		if ((double)(difftime(time_advt_fin, time_advt_beg) >= PERIODIC_HELLO_TIME)) {
-			printf ("%f\n", difftime(time_advt_fin, time_advt_beg));
-
 			memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
 			int numberOfInterfaces = getActiveInterfaces(interfaceNames);
 
@@ -183,7 +181,6 @@ void mtp_start() {
 				}
 			}
 			free(payload);
-
 
 			memset(deletedVIDs, '\0', sizeof(char) * MAX_VID_LIST * MAX_VID_LIST);
 
@@ -225,12 +222,12 @@ void mtp_start() {
 			}
 
 			// print all tables.
-			/*if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
+			if ((hasCPVIDDeletions == true) || (numberOfDeletions > 0)) {
 				print_entries_LL();                     // MAIN VID TABLE
 				print_entries_bkp_LL();                 // BKP VID TABLE
 				print_entries_cpvid_LL();               // CHILD PVID TABLE
 				print_entries_lbcast_LL();              // LOCAL HOST PORTS
-			}*/
+			}
 			// reset time.
 			time(&time_advt_beg);
 		} 
@@ -329,6 +326,7 @@ void mtp_start() {
 								tracker = tracker + 1;
 
 								char vid_addr[vid_len];
+								bool hasAdditions = false;
 
 								memset(vid_addr, '\0', vid_len);
 								strncpy(vid_addr, &recvBuffer[tracker], vid_len);
@@ -376,23 +374,7 @@ void mtp_start() {
 
 									// Add into VID Table, if addition success, update all other connected peers about the change.
 									if (add_entry_LL(new_node)) {
-										memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
-										int numberOfInterfaces = getActiveInterfaces(interfaceNames);
-
-										uint8_t *payload = NULL;
-										int payloadLen = 0;
-
-										payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
-
-										int i = 0;
-										for (; i < numberOfInterfaces; ++i) {
-											// recvOnEtherPort - Payload destination will be same from where Join message has orginated.
-											payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
-											if (payloadLen) {
-												ctrlSend(interfaceNames[i], payload, payloadLen);
-											}
-										}
-										free(payload);
+										hasAdditions = true;
 
 										// If peer has VID derived from me earlier and has a change now.
 										if (numberVIDS == (uint8_t) recvBuffer[16]) { // if same first ID
@@ -405,6 +387,23 @@ void mtp_start() {
 								}
 								numberVIDS--;
 							}
+							memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+							int numberOfInterfaces = getActiveInterfaces(interfaceNames);
+
+							uint8_t *payload = NULL;
+							int payloadLen = 0;
+
+							payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
+
+							int i = 0;
+							for (; i < numberOfInterfaces; ++i) {
+								// recvOnEtherPort - Payload destination will be same from where Join message has orginated.
+								payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
+								if (payloadLen) {
+									ctrlSend(interfaceNames[i], payload, payloadLen);
+								}
+							}
+							free(payload);
 						} else if (operation == VID_DEL){
 							//printf ("GOT VID_DEL\n");
 							// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
@@ -468,10 +467,10 @@ void mtp_start() {
 						} else {
 							printf("Unknown VID Advertisment\n");
 						}
-						/*print_entries_LL();
+						print_entries_LL();
 						print_entries_bkp_LL();
 						print_entries_cpvid_LL();
-						print_entries_lbcast_LL(); */
+						print_entries_lbcast_LL(); 
 					} 
 					break;
 				default:
