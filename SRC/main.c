@@ -93,6 +93,10 @@ int main (int argc, char** argv) {
 			new_node->next = NULL;
 			new_node->isNew = true;
 			new_node->path_cost = PATH_COST;
+
+			// Add into VID Table.
+			add_entry_LL(new_node);
+
 			i = 0;
 			uint8_t *payload = NULL;
 			uint8_t payloadLen;
@@ -105,10 +109,6 @@ int main (int argc, char** argv) {
 				}
 				free(payload);
 			}	
-
-			// Add into VID Table.
-			add_entry_LL(new_node);
-
 		} else {
 			printf ("Error: Provide ROOT Switch ID ./main <non MTS/root MTS> <ROOT MTS ID>\n");
 			exit(1);
