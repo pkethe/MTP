@@ -40,7 +40,7 @@
 
 #define PATH_COST		            0
 
-#define PERIODIC_HELLO_TIME	    2
+#define PERIODIC_HELLO_TIME	    2.0
 
 /* Type of Ports */
 #define MTP_PORT                1
