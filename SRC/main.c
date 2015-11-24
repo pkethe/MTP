@@ -153,12 +153,12 @@ void mtp_start() {
 		exit(1);
 	}
 
-	time_advt_beg = time(0);
+	time(&time_advt_beg);
 	while (true) {
-		time_advt_fin = time(0);
-
+		time(&time_advt_fin);
 		// Send Hello Periodic, only if have atleast One VID in Main VID Table.
-		if (((time_advt_fin - time_advt_beg) > PERIODIC_HELLO_TIME)) {
+		if ((difftime(time_advt_fin, time_advt_beg) > PERIODIC_HELLO_TIME)) {
+			printf ("%f\n", difftime(time_advt_fin, time_advt_beg));
 
 			memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
 			int numberOfInterfaces = getActiveInterfaces(interfaceNames);
@@ -184,8 +184,6 @@ void mtp_start() {
 			}
 			free(payload);
 
-			// reset time.
-			time_advt_beg = time(0);
 
 			memset(deletedVIDs, '\0', sizeof(char) * MAX_VID_LIST * MAX_VID_LIST);
 
@@ -233,6 +231,8 @@ void mtp_start() {
 				print_entries_cpvid_LL();               // CHILD PVID TABLE
 				print_entries_lbcast_LL();              // LOCAL HOST PORTS
 			}*/
+			// reset time.
+			time(&time_advt_beg);
 		} 
 
 		socklen_t addr_len = sizeof(src_addr);
