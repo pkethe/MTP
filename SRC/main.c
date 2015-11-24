@@ -312,6 +312,7 @@ void mtp_start() {
 							uint8_t numberVIDS = (uint8_t) recvBuffer[16];
 							//printf ("numberVIDS %u\n", numberVIDS);
 							int tracker = 17;		
+							bool hasAdditions = false;
 							while (numberVIDS != 0) {
 								uint8_t path_cost = (uint8_t)recvBuffer[tracker];
 								//printf("Path Cost: %u\n", recvBuffer[tracker]);
@@ -326,7 +327,6 @@ void mtp_start() {
 								tracker = tracker + 1;
 
 								char vid_addr[vid_len];
-								bool hasAdditions = false;
 
 								memset(vid_addr, '\0', vid_len);
 								strncpy(vid_addr, &recvBuffer[tracker], vid_len);
@@ -387,23 +387,26 @@ void mtp_start() {
 								}
 								numberVIDS--;
 							}
-							memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
-							int numberOfInterfaces = getActiveInterfaces(interfaceNames);
+							
+							if (hasAdditions) {
+								memset(interfaceNames, '\0', sizeof(char) * MAX_INTERFACES * MAX_INTERFACES);
+								int numberOfInterfaces = getActiveInterfaces(interfaceNames);
 
-							uint8_t *payload = NULL;
-							int payloadLen = 0;
+								uint8_t *payload = NULL;
+								int payloadLen = 0;
 
-							payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
+								payload = (uint8_t*) calloc (1, MAX_BUFFER_SIZE);
 
-							int i = 0;
-							for (; i < numberOfInterfaces; ++i) {
-								// recvOnEtherPort - Payload destination will be same from where Join message has orginated.
-								payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
-								if (payloadLen) {
-									ctrlSend(interfaceNames[i], payload, payloadLen);
+								int i = 0;
+								for (; i < numberOfInterfaces; ++i) {
+									// recvOnEtherPort - Payload destination will be same from where Join message has orginated.
+									payloadLen = build_VID_ADVT_PAYLOAD(payload, interfaceNames[i]);
+									if (payloadLen) {
+										ctrlSend(interfaceNames[i], payload, payloadLen);
+									}
 								}
+								free(payload);
 							}
-							free(payload);
 						} else if (operation == VID_DEL){
 							//printf ("GOT VID_DEL\n");
 							// Message ordering <MSG_TYPE> <OPERATION> <NUMBER_VIDS> <VID_ADDR_LEN> <MAIN_TABLE_VID + EGRESS PORT>
