@@ -451,25 +451,29 @@ int checkForFailures(char **deletedVIDs) {
 bool delete_entry_LL(char *vid_to_delete) {
   struct vid_addr_tuple *current = main_vid_tbl_head;
   struct vid_addr_tuple *previous = NULL;
-  bool hasDeletions = false;
+  bool hasDeletionsInMainVID = false; // top 3
+  int tracker = 0;
 
   while (current != NULL) {
-    if (strncmp(vid_to_delete, current->vid_addr, strlen(vid_to_delete)) == 0) {
-      struct vid_addr_tuple *temp = current;
+	  tracker += 1;
+	  if (strncmp(vid_to_delete, current->vid_addr, strlen(vid_to_delete)) == 0) {
+		  struct vid_addr_tuple *temp = current;
 
-      if (previous == NULL) {
-        main_vid_tbl_head = current->next;
-      } else {
-        previous->next = current->next;
-      }
+		  if (previous == NULL) {
+			  main_vid_tbl_head = current->next;
+		  } else {
+			  previous->next = current->next;
+		  }
 
-      current = current->next;
-      hasDeletions = true;
-      free(temp);
-      continue;
-    }
-    previous = current;
-    current = current->next;
+		  current = current->next;
+		  if (tracker > 0 && tracker <= 3) {
+			  hasDeletions = true;
+		  }
+		  free(temp);
+		  continue;
+	  }
+	  previous = current;
+	  current = current->next;
   }
 
   // fix any wrong membership values.
