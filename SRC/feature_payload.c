@@ -452,6 +452,7 @@ bool delete_entry_LL(char *vid_to_delete) {
   struct vid_addr_tuple *current = main_vid_tbl_head;
   struct vid_addr_tuple *previous = NULL;
   bool hasDeletionsInMainVID = false; // top 3
+  int hasDeletions = false;
   int tracker = 0;
 
   while (current != NULL) {
@@ -467,8 +468,9 @@ bool delete_entry_LL(char *vid_to_delete) {
 
 		  current = current->next;
 		  if (tracker > 0 && tracker <= 3) {
-			  hasDeletions = true;
+			hasDeletionsInMainVID  = true;
 		  }
+		  hasDeletions = true;
 		  free(temp);
 		  continue;
 	  }
@@ -484,7 +486,7 @@ bool delete_entry_LL(char *vid_to_delete) {
       membership++;
     }
   }
-  return hasDeletions;
+  return hasDeletionsInMainVID;
 }
 
 
