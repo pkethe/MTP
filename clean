@@ -1,3 +1,6 @@
 sudo rm data/*
+sudo rm tcpeth*
 sudo pkill tshark
 sudo pkill mtpd
+sudo pkill tcpdump
+
