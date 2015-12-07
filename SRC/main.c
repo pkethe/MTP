@@ -48,8 +48,8 @@ int main (int argc, char** argv) {
 	char **interfaceNames;
 
 	// Check number of Arguments.
-	if (argc < 1) {
-		printf("Error: Node spec or Source Tier address missing. Format ./main <non MTS/root MTS> <ROOT MTS ID>\n");
+	if (argc < 2) {
+		printf("Error: Node spec or ROOT MTS ID missing. Format ./main <non MTS/root MTS> <ROOT MTS ID>\n");
 		printf("Error: 0 for non MTS, 1 for root MTS\n");
 		exit(1);
 	}
@@ -372,10 +372,12 @@ void mtp_start() {
 									new_node->path_cost = (uint8_t) path_cost;
 									memcpy(&new_node->mac, (struct ether_addr *)&eheader->ether_shost, sizeof(struct ether_addr));
 
+									int mainVIDTracker = add_entry_LL(new_node);
 									// Add into VID Table, if addition success, update all other connected peers about the change.
-									if (add_entry_LL(new_node)) {
-										hasAdditions = true;
-
+									if (mainVIDTracker > 0) {
+										if (mainVIDTracker <= 3) {
+											hasAdditions = true;
+										}
 										// If peer has VID derived from me earlier and has a change now.
 										if (numberVIDS == (uint8_t) recvBuffer[16]) { // if same first ID
 											// Check PVID used by peer is a derived PVID from me.

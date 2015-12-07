@@ -94,7 +94,7 @@ bool isMain_VID_Table_Empty();
 int isChild(char *);
 
 /* Function Prototypes for MAIN VID Table Linked List */
-bool add_entry_LL(struct vid_addr_tuple *);
+int add_entry_LL(struct vid_addr_tuple *);
 bool find_entry_LL(struct vid_addr_tuple *);
 void print_entries_LL();
 bool update_hello_time_LL(struct ether_addr *);

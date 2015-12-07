@@ -272,26 +272,30 @@ bool isMain_VID_Table_Empty() {
  *     		VID Table,		Implemented Using linked list. 
  * 		Head Ptr,		*vid_table
  * 		@return 
- * 		true 			Successful Addition
- * 		false 			Failure to add/ Already exists.		 	
+ * 		< 3 			Successful Addition, addition in first 3 entries of Main VID Table
+ * 		-1			Failure to add/ Already exists.
+ * 		> 3   			Successful Addition, addition after first 3 entries of Main VID Table (Backup VID Table)		 	
 **/
 
-bool add_entry_LL(struct vid_addr_tuple *node) {
+int add_entry_LL(struct vid_addr_tuple *node) {
 	struct vid_addr_tuple *current = main_vid_tbl_head;
+	int tracker = 0;
 	// If the entry is not already present, we add it.
 	if (!find_entry_LL(node)) {
 		if (main_vid_tbl_head == NULL) {
-				node->membership = 1;
-				main_vid_tbl_head = node;
+			node->membership = 1;
+			main_vid_tbl_head = node;
+			tracker++;
 		} else {
 			struct vid_addr_tuple *previous = NULL;
-			
+
 			int mship = 0;	
 			// place in accordance with cost, lowest to highest.
 			while(current!=NULL && (current->path_cost < node->path_cost)) {
 				previous = current;
 				mship = current->membership;
 				current = current->next;
+				tracker += 1;
 			}
 
 			// if new node has lowest cost.
@@ -311,9 +315,9 @@ bool add_entry_LL(struct vid_addr_tuple *node) {
 				current = current->next;
 			}
 		}
-		return true;
+		return tracker;
 	}
-	return false;
+	return -1;
 }
 
 /**
