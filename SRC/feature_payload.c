@@ -303,6 +303,7 @@ int add_entry_LL(struct vid_addr_tuple *node) {
 				node->next = main_vid_tbl_head;
 				node->membership = 1;
 				main_vid_tbl_head = node;
+				tracker += 1;
 			} else {
 				previous->next = node;
 				node->next = current;
