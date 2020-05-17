@@ -2,7 +2,7 @@
 A Meshed Tree Protocol
 
 
-#How to compile
+# How to compile
 
 sh install
 
